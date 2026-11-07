@@ -34,7 +34,7 @@ test("dashboard fits a narrow phone", async ({ page }) => {
 test("planner edits, impossible break-even, and a browser save", async ({ page }, info) => {
   await page.goto("/");
   await expect(page.getByRole("heading", { name: "Native Nursery" })).toBeVisible();
-  await expect(page.getByText("Account save is pending owner setup").first()).toBeVisible();
+  await expect(page.getByText("Account save switches on after the records and owner migrations").first()).toBeVisible();
   await expect(page.getByTestId("storage-label")).toContainText("this browser");
   await expect(page.getByLabel("Business rent per week")).toHaveValue("0");
 

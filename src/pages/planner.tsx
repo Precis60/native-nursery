@@ -31,7 +31,7 @@ export function PlannerPage() {
       ? "Editing an account scenario. Account saves are private to the signed-in user."
       : source.kind === "local"
         ? "Editing a copy saved in this browser only."
-        : "Working draft in this browser. Account save is pending owner setup.";
+        : "Working draft in this browser. Account save switches on after the records and owner migrations run in Supabase.";
 
   async function run(action: () => Promise<string | null>) {
     setBusy(true);
@@ -45,7 +45,7 @@ export function PlannerPage() {
         <p className="text-sm font-semibold uppercase tracking-[0.16em] text-gold">Year 1</p>
         <h1 className="font-serif text-4xl text-olive sm:text-5xl">Native Nursery</h1>
         <p className="mt-2 max-w-3xl text-muted">
-          Independent nursery planner for a proposed rented site near Geelong. Figures are estimates. Sale prices are prior wholesale planning ranges, not current quotes. Account save is pending owner setup.
+          Independent nursery planner for a proposed rented site near Geelong. Figures are estimates. Sale prices are prior wholesale planning ranges, not current quotes. Account save switches on after the records and owner migrations run in Supabase.
         </p>
       </header>
 
@@ -107,7 +107,7 @@ export function PlannerPage() {
         </div>
         {!planner.userEmail ? (
           <p className="note mt-2">
-            Account save is pending owner setup. This page cannot create the owner, and a browser copy stays in this browser.
+            Account save switches on after the records and owner migrations run in Supabase. This page cannot apply them, and a browser copy stays in this browser.
           </p>
         ) : null}
       </section>

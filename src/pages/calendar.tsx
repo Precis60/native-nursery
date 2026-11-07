@@ -1,12 +1,20 @@
 import { batches, calendar, channels, compliance, risks, setupChecks, sources, sowing, zones } from "../domain/reference.ts";
+import { useRecords } from "../state/records-context.tsx";
 
 export function CalendarPage() {
+  const { records, setChecklist } = useRecords();
+  const doneCount = compliance.filter((_, index) => records.checklist[`compliance:${index}`]).length;
+  const setupDone = setupChecks.filter((_, index) => records.checklist[`setup:${index}`]).length;
   return (
     <div className="grid gap-5">
       <header className="flex flex-wrap items-end justify-between gap-3">
         <div>
           <h1 className="font-serif text-4xl">Calendar and checks</h1>
-          <p className="mt-2 max-w-3xl text-muted">November 2026 to October 2027. Hours are estimates for one person. Nothing on the checklist is marked done.</p>
+          <p className="mt-2 max-w-3xl text-muted">
+            November 2026 to October 2027. Hours are estimates for one person. {doneCount} of {compliance.length}
+            {" pre-sale checks"} and {setupDone} of {setupChecks.length} setup items ticked — ticks are saved on this
+            device and sync to your account when you sign in.
+          </p>
         </div>
         <button className="btn btn-secondary no-print" type="button" onClick={() => window.print()}>
           Print
@@ -72,20 +80,52 @@ export function CalendarPage() {
       <section className="panel">
         <h2 className="font-serif text-2xl">Before you sell</h2>
         <ul className="mt-3 grid gap-2">
-          {compliance.map((item) => (
-            <li key={item.text} className="rounded-xl border border-line bg-white px-3 py-2">
-              <span className="text-xs font-semibold uppercase tracking-wide text-gold">{item.meta}</span>
-              <p>{item.text}</p>
-            </li>
-          ))}
+          {compliance.map((item, index) => {
+            const key = `compliance:${index}`;
+            const doneAt = records.checklist[key];
+            return (
+              <li key={item.text} className="rounded-xl border border-line bg-white px-3 py-2">
+                <label className="flex min-h-11 items-start gap-3">
+                  <input
+                    className="mt-1"
+                    type="checkbox"
+                    checked={Boolean(doneAt)}
+                    onChange={(event) => setChecklist(key, event.target.checked)}
+                  />
+                  <span className="min-w-0 flex-1">
+                    <span className="text-xs font-semibold uppercase tracking-wide text-gold">{item.meta}</span>
+                    <p>{item.text}</p>
+                    {doneAt ? <p className="note mt-1">Done {new Date(doneAt).toLocaleDateString("en-AU")}</p> : null}
+                  </span>
+                </label>
+              </li>
+            );
+          })}
         </ul>
       </section>
       <section className="panel">
         <h2 className="font-serif text-2xl">Setup checklist</h2>
-        <ul className="mt-3 list-disc space-y-2 pl-5">
-          {setupChecks.map((item) => (
-            <li key={item}>{item}</li>
-          ))}
+        <ul className="mt-3 grid gap-2">
+          {setupChecks.map((item, index) => {
+            const key = `setup:${index}`;
+            const doneAt = records.checklist[key];
+            return (
+              <li key={item}>
+                <label className="flex min-h-11 items-start gap-3">
+                  <input
+                    className="mt-1"
+                    type="checkbox"
+                    checked={Boolean(doneAt)}
+                    onChange={(event) => setChecklist(key, event.target.checked)}
+                  />
+                  <span className="min-w-0 flex-1">
+                    <p>{item}</p>
+                    {doneAt ? <p className="note mt-1">Done {new Date(doneAt).toLocaleDateString("en-AU")}</p> : null}
+                  </span>
+                </label>
+              </li>
+            );
+          })}
         </ul>
       </section>
       <section className="panel">

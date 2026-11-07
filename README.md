@@ -1,6 +1,6 @@
 # Native Nursery
 
-Year-1 planner for an independent Australian native nursery, aimed at a proposed rented site near Geelong. It is a static app published from this repository with GitHub Pages. Scenarios can stay in this browser. Account save is not available until the owner is set up.
+Year-1 planner for an independent Australian native nursery, aimed at a proposed rented site near Geelong. It is a static app published from this repository with GitHub Pages. Scenarios and records can stay in this browser. Account save switches on once the pending Supabase migrations are applied.
 
 ## Run locally
 
@@ -27,11 +27,21 @@ The dev server is [http://127.0.0.1:4179/native-nursery/](http://127.0.0.1:4179/
 
 The species list, sowing calendar, supplier links and the November 2026 prices are reference data inside the app. They are not private scenario rows, and the database is not seeded with them.
 
+## Running the business
+
+Four pages track actuals against the open scenario. Records save in this browser immediately and sync to the account when the owner signs in.
+
+- **Sales**: record each sale (date, channel, size, units, price, GST basis) and manage the order pipeline (enquiry → confirmed → delivered → paid). Delivered or confirmed orders can be logged as sales.
+- **Costs**: record expenses against the same categories the planner uses, plus a weekly owner/hired labour log with averages against the plan.
+- **Batches**: count started → germinated → saleable → sold per batch. Observed germination, survival and sell-through are shown beside the planning assumptions, with stock on hand by size.
+- **Dashboard**: revenue, units, cash position, break-even progress, pre-order coverage, GST collected and paid, and labour, each against the plan's expected-to-date from the monthly sales weights. Exports a BAS-friendly CSV and a JSON backup; the JSON import restores the whole ledger.
+- The calendar's "Before you sell" and setup checklists, and the shopping list's Bought column, remember their ticks.
+
 ## Accounts
 
 Production builds read `VITE_SUPABASE_URL` and `VITE_SUPABASE_PUBLISHABLE_KEY`. See [docs/SUPABASE.md](docs/SUPABASE.md) and `.env.example`. Never put a service role key in the frontend.
 
-The app can sign in an existing owner. It does not offer registration, and signing up elsewhere does not add anyone to the allowlist. Owner setup is still pending, so cloud save is not working.
+The app can sign in an existing owner. It does not offer registration, and signing up elsewhere does not add anyone to the allowlist. The owner account exists; applying the records and owner-enrolment migrations finishes the setup.
 
 ## Hosting
 

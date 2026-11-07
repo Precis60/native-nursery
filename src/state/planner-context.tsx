@@ -30,6 +30,7 @@ type PlannerValue = {
   cloudState: CloudState;
   cloudError: string | null;
   userEmail: string | null;
+  userId: string | null;
   configured: boolean;
   configProblem: string | null;
   saveCloud: (mode: "update" | "new") => Promise<string | null>;
@@ -143,6 +144,7 @@ export function PlannerProvider({ children }: { children: ReactNode }) {
       configured: supabaseConfig.configured,
       configProblem: supabaseConfig.problem,
       userEmail: session?.user.email ?? null,
+      userId,
       localScenarios,
       cloudScenarios,
       cloudState,

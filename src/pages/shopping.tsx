@@ -14,9 +14,11 @@ import {
   type ShoppingChoice,
 } from "../domain/shopping.ts";
 import { usePlanner } from "../state/planner-context.tsx";
+import { useRecords } from "../state/records-context.tsx";
 
 export function ShoppingPage() {
   const { draft, setInputs } = usePlanner();
+  const { records, setPurchase } = useRecords();
   const [list, setList] = useState<"day" | "full">("full");
   const [includeTank, setIncludeTank] = useState(false);
   const [includeCanWait, setIncludeCanWait] = useState(false);
@@ -39,6 +41,11 @@ export function ShoppingPage() {
   }
   const totals = classifyLines(lines, amounts, choice);
   const rough = list === "day" ? KIT_PRESETS.starter.publishedRoughTotal : includeTank ? KIT_PRESETS.tank.publishedRoughTotal : KIT_PRESETS.full.publishedRoughTotal;
+  const boughtIncluded = lines.filter((line) => lineIncluded(line, choice) && records.purchases[`${list}:${line.id}`]);
+  const paidTotal = boughtIncluded.reduce((sum, line) => {
+    const flag = records.purchases[`${list}:${line.id}`];
+    return sum + (flag?.paid ?? amounts[line.id] ?? line.amount ?? 0);
+  }, 0);
 
   function applySelection(useEdits: boolean) {
     if (useEdits && editError) {
@@ -110,11 +117,17 @@ export function ShoppingPage() {
         <p className="note mt-3">
           Selected total {formatAud(totals.total, 2)}: equipment {formatAud(totals.equipment, 2)}, containers {formatAud(totals.containers, 2)}, consumables {formatAud(totals.consumables, 2)}, seed {formatAud(totals.seed, 2)}. Earlier rough reference {formatAud(rough)}. Can-wait lines and the tank stay out until you tick them. A missing quote is not $0.
         </p>
+        <p className="note mt-2">
+          Bought {boughtIncluded.length} of {lines.filter((line) => lineIncluded(line, choice)).length} included lines
+          {boughtIncluded.length > 0 ? `, about ${formatAud(paidTotal, 2)} paid` : ""}. Ticks are saved on this device
+          and sync to your account when you sign in.
+        </p>
         <div className="table-wrap mt-3">
           <table className="data">
             <caption className="sr-only">{list === "day" ? "Day-one shopping list" : "Full-scale shopping list"}</caption>
             <thead>
               <tr>
+                <th>Bought</th>
                 <th>Item</th>
                 <th>Qty</th>
                 <th>Unit</th>
@@ -124,7 +137,21 @@ export function ShoppingPage() {
             </thead>
             <tbody>
               {lines.map((line) => (
-                <ShopRow key={line.id} line={line} list={list} edits={edits} setEdits={setEdits} included={lineIncluded(line, choice)} />
+                <ShopRow
+                  key={line.id}
+                  line={line}
+                  list={list}
+                  edits={edits}
+                  setEdits={setEdits}
+                  included={lineIncluded(line, choice)}
+                  bought={Boolean(records.purchases[`${list}:${line.id}`])}
+                  onBought={(checked) =>
+                    setPurchase(
+                      `${list}:${line.id}`,
+                      checked ? { paid: amounts[line.id] ?? line.amount ?? null, at: new Date().toISOString() } : null,
+                    )
+                  }
+                />
               ))}
             </tbody>
           </table>
@@ -185,16 +212,25 @@ function ShopRow({
   edits,
   setEdits,
   included,
+  bought,
+  onBought,
 }: {
   line: ShopLine;
   list: string;
   edits: Record<string, string>;
   setEdits: (value: Record<string, string> | ((current: Record<string, string>) => Record<string, string>)) => void;
   included: boolean;
+  bought: boolean;
+  onBought: (checked: boolean) => void;
 }) {
   const key = `${list}:${line.id}`;
   return (
     <tr>
+      <td>
+        <label className="flex min-h-11 items-center gap-2">
+          <input type="checkbox" checked={bought} onChange={(event) => onBought(event.target.checked)} aria-label={`Bought ${line.item}`} />
+        </label>
+      </td>
       <th scope="row">
         {line.href ? (
           <a className="underline" href={line.href}>

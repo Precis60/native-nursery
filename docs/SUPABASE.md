@@ -5,17 +5,10 @@ Project `xhmzhtdhszirbbiwvbqz` (Native Nursery) is the database for this app. Th
 Checked after those migrations:
 
 - `public.native_nursery_scenarios` has no rows.
-- `private.native_nursery_app_owners` has no rows.
-- `auth.users` has no rows.
+- `auth.users` holds the owner account. `private.native_nursery_app_owners` is filled by the enrolment migration below.
+- `public.native_nursery_records` comes from `20261107120000_native_nursery_records.sql`, pending application.
 
-Cloud save is not working. This app does not create the owner and does not send mail. After the owner account exists in Authentication, insert that user id in the SQL editor:
-
-```sql
-insert into private.native_nursery_app_owners (user_id)
-values ('00000000-0000-0000-0000-000000000000');
-```
-
-Replace the placeholder. The placeholder was not executed. Do not look the id up by email in application code.
+The owner account now exists in Authentication. `supabase/migrations/20261107200000_native_nursery_owner.sql` enrols that user id in the allowlist. Apply it, and the records migration, in the SQL editor — until both run, cloud save and record sync stay browser-only. Do not look the id up by email in application code.
 
 ## Client settings
 
@@ -37,5 +30,11 @@ Access is a single-owner allowlist in `private.native_nursery_app_owners`. The D
 `anon` has no privilege on the scenario table. `authenticated` is not granted write on the owner table. The browser is not given the service role.
 
 Row Level Security is enabled. No view is created. If you add one, create it `with (security_invoker = true)`. No security-definer function is placed in `public`.
+
+## Records
+
+`supabase/migrations/20261107120000_native_nursery_records.sql` adds `public.native_nursery_records`: one row per recorded sale, expense, production batch, order or labour week (`kind`), plus a single `kind = 'state'` row per user that holds checklist and purchase flags. The app upserts by row id and syncs them into the browser ledger on sign-in.
+
+The migration reuses the same owner allowlist and policy shape as the scenario table. Apply it only after `20261107025000_native_nursery_owner_allowlist.sql`, which creates `private.native_nursery_is_owner()`.
 
 The app sets `updated_at` on update. There is no public trigger function, which keeps the table from growing an RPC endpoint.
