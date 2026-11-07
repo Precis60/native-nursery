@@ -30,11 +30,10 @@ export function AccountPage() {
       </header>
 
       <section className="callout" role="status">
-        <p className="font-semibold">Owner setup is pending two migrations.</p>
+        <p className="font-semibold">Owner setup is still pending.</p>
         <p className="mt-2">
-          The owner account exists. Apply the records-table migration and the owner-enrolment migration in the Supabase
-          SQL editor, then sign in. Until both run, scenario save and record sync stay in this browser. This page cannot
-          apply migrations.
+          The records table is already in the database. The owner allowlist is empty, so cloud save is not available.
+          This page cannot create the owner or add anyone to the allowlist.
         </p>
       </section>
 

@@ -41,7 +41,7 @@ Four pages track actuals against the open scenario. Records save in this browser
 
 Production builds read `VITE_SUPABASE_URL` and `VITE_SUPABASE_PUBLISHABLE_KEY`. See [docs/SUPABASE.md](docs/SUPABASE.md) and `.env.example`. Never put a service role key in the frontend.
 
-The app can sign in an existing owner. It does not offer registration, and signing up elsewhere does not add anyone to the allowlist. The owner account exists; applying the records and owner-enrolment migrations finishes the setup.
+The app can sign in an allowlisted owner. It does not offer registration, and signing up elsewhere does not add anyone to the allowlist. The allowlist is empty, so cloud save is not available.
 
 ## Hosting
 
