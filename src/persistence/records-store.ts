@@ -28,14 +28,18 @@ export type RemoteRecord = {
   updatedAt: string;
 };
 
-export function loadRecords(store: KeyValueStore): { records: RecordsState; warning: string | null } {
-  const raw = store.getItem(RECORDS_KEY);
+export function recordsKey(userId: string): string {
+  return `native-nursery.records.${userId}`;
+}
+
+export function loadRecords(store: KeyValueStore, key = RECORDS_KEY): { records: RecordsState; warning: string | null } {
+  const raw = store.getItem(key);
   if (!raw) return { records: emptyRecords(), warning: null };
   try {
     return { records: coerceRecords(JSON.parse(raw)), warning: null };
   } catch {
-    store.setItem(`${RECORDS_KEY}.unreadable`, raw);
-    store.removeItem(RECORDS_KEY);
+    store.setItem(`${key}.unreadable`, raw);
+    store.removeItem(key);
     return {
       records: emptyRecords(),
       warning:
@@ -44,8 +48,8 @@ export function loadRecords(store: KeyValueStore): { records: RecordsState; warn
   }
 }
 
-export function saveRecords(store: KeyValueStore, records: RecordsState): void {
-  store.setItem(RECORDS_KEY, JSON.stringify(records));
+export function saveRecords(store: KeyValueStore, records: RecordsState, key = RECORDS_KEY): void {
+  store.setItem(key, JSON.stringify(records));
 }
 
 export function entryList(records: RecordsState, kind: EntryKind): { id: string; updatedAt: string }[] {

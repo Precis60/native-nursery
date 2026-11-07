@@ -9,12 +9,14 @@ import type {
   RecordsState,
   SaleEntry,
 } from "../domain/records.ts";
+import { emptyRecords } from "../domain/records.ts";
 import {
   createSupabaseRecordsStore,
   ENTRY_KINDS,
   entryList,
   loadRecords,
   mergeRemoteRows,
+  recordsKey,
   saveRecords,
   type EntryKind,
   type RecordsRemoteStore,
@@ -97,23 +99,24 @@ function withEntry<E extends { id: string; updatedAt: string }>(records: Records
 
 export function RecordsProvider({ children }: { children: ReactNode }) {
   const planner = usePlanner();
+  const userId = planner.userId;
   const storage = useMemo(browserStorage, []);
-  const opened = useMemo(() => loadRecords(storage), [storage]);
+  const storageKey = userId ? recordsKey(userId) : null;
+  const opened = useMemo(() => (storageKey ? loadRecords(storage, storageKey) : { records: emptyRecords(), warning: null }), [storage, storageKey]);
   const [records, setRecords] = useState<RecordsState>(opened.records);
   const [warning, setWarning] = useState<string | null>(opened.warning);
   const [syncState, setSyncState] = useState<SyncState>("local");
   const [syncError, setSyncError] = useState<string | null>(null);
   const stateRowId = useRef<string | null>(null);
   const recordsRef = useRef(records);
-  const userId = planner.userId;
 
   const persist = useCallback(
     (next: RecordsState) => {
       recordsRef.current = next;
       setRecords(next);
-      saveRecords(storage, next);
+      if (storageKey) saveRecords(storage, next, storageKey);
     },
-    [storage],
+    [storage, storageKey],
   );
 
   const remote = useCallback((): RecordsRemoteStore | null => {

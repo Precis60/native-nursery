@@ -19,6 +19,7 @@ import { scenarioToCsv, serializeScenario } from "../domain/io.ts";
 import { MONTH_LABELS, issueFor } from "../domain/model.ts";
 import { formatAud } from "../domain/format.ts";
 import { downloadText } from "../lib/download.ts";
+import { ForecastBoard } from "../components/forecast.tsx";
 import { usePlanner } from "../state/planner-context.tsx";
 
 export function PlannerPage() {
@@ -31,7 +32,7 @@ export function PlannerPage() {
       ? "Editing an account scenario. Account saves are private to the signed-in user."
       : source.kind === "local"
         ? "Editing a copy saved in this browser only."
-        : "Working draft in this browser. Account save switches on after the records and owner migrations run in Supabase.";
+        : "Kept for this sign-in. It is sent to your account when the numbers are valid.";
 
   async function run(action: () => Promise<string | null>) {
     setBusy(true);
@@ -45,7 +46,7 @@ export function PlannerPage() {
         <p className="text-sm font-semibold uppercase tracking-[0.16em] text-gold">Year 1</p>
         <h1 className="font-serif text-4xl text-olive sm:text-5xl">Native Nursery</h1>
         <p className="mt-2 max-w-3xl text-muted">
-          Independent nursery planner for a proposed rented site near Geelong. Figures are estimates. Sale prices are prior wholesale planning ranges, not current quotes. Account save switches on after the records and owner migrations run in Supabase.
+          Independent nursery planner for a proposed rented site near Geelong. Figures are estimates in AUD. Sale prices are ex GST. The tube default is the midpoint of an old planning range, not a current quote. Owner time is economic. Hired wages are cash. Business rent stays $0 until you allocate it. Household rent is not added.
         </p>
       </header>
 
@@ -105,13 +106,10 @@ export function PlannerPage() {
             Export CSV
           </button>
         </div>
-        {!planner.userEmail ? (
-          <p className="note mt-2">
-            Account save switches on after the records and owner migrations run in Supabase. This page cannot apply them, and a browser copy stays in this browser.
-          </p>
-        ) : null}
+        {planner.cloudError ? <p className="note mt-2">Account save did not finish. {planner.cloudError} The latest edit is still held for this sign-in.</p> : null}
       </section>
 
+      <ForecastBoard inputs={planner.draft.inputs} />
       <div className="grid items-start gap-5 lg:grid-cols-[minmax(0,1.05fr)_minmax(20rem,0.95fr)]">
         <div className="order-2 min-w-0 lg:order-1">
           <PlannerForm key={planner.formEpoch} />

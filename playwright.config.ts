@@ -7,9 +7,9 @@ export default defineConfig({
   retries: 0,
   use: { baseURL: "http://127.0.0.1:4179/native-nursery/", trace: "off" },
   webServer: {
-    command: "npm run dev -- --host 127.0.0.1 --port 4179",
+    command: "set -a && . ./.env.production && set +a && npm run dev -- --host 127.0.0.1 --port 4179",
     url: "http://127.0.0.1:4179",
-    reuseExistingServer: true,
+    reuseExistingServer: false,
     timeout: 120_000,
   },
   projects: [

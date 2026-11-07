@@ -11,6 +11,7 @@ import { PlannerPage } from "./pages/planner.tsx";
 import { SalesPage } from "./pages/sales.tsx";
 import { ShoppingPage } from "./pages/shopping.tsx";
 import { SpeciesPage } from "./pages/species.tsx";
+import { rememberSignOutNotice, SessionGate } from "./auth/session-gate.tsx";
 import { PlannerProvider, usePlanner } from "./state/planner-context.tsx";
 import { RecordsProvider } from "./state/records-context.tsx";
 
@@ -30,7 +31,13 @@ const links = [
 
 function Shell() {
   const location = useLocation();
-  const { userEmail, configured } = usePlanner();
+  const planner = usePlanner();
+  const { userEmail } = planner;
+  async function leave() {
+    const error = await planner.saveCloud(planner.draft.source.kind === "cloud" ? "update" : "new");
+    if (error) rememberSignOutNotice(`The account save did not finish (${error}).`);
+    await planner.signOut();
+  }
   useEffect(() => {
     window.scrollTo(0, 0);
   }, [location.pathname]);
@@ -44,8 +51,11 @@ function Shell() {
         <div className="mx-auto flex max-w-6xl flex-wrap items-center justify-between gap-2 px-4 py-3">
           <p className="font-serif text-xl text-olive">Native Nursery</p>
           <p className="text-sm text-muted" data-testid="account-pill">
-            {userEmail ? userEmail : configured ? "Signed out" : "This browser only"}
+            {userEmail ?? "Owner"}
           </p>
+          <button className="btn btn-secondary" type="button" onClick={() => void leave()}>
+            Sign out
+          </button>
         </div>
         <nav aria-label="Sections" className="mx-auto flex w-full min-w-0 max-w-6xl gap-2 overflow-x-auto px-4 pb-3">
           {links.map(([to, label]) => (
@@ -72,7 +82,7 @@ function Shell() {
         </Routes>
       </main>
       <footer className="no-print mx-auto max-w-6xl px-4 pb-10 text-sm text-muted">
-        GitHub Pages planner with hash routing. Estimates are in AUD. Trading prices are ex GST. Kit totals follow the selected shelf-price lines, often inc GST. Account save switches on after the records and owner migrations run in Supabase.
+        Estimates are in AUD. Sale prices on the plan are ex GST unless a line says otherwise. Kit shelf prices are often inc GST. Household rent is not a business cost unless you type a business allocation.
       </footer>
     </>
   );
@@ -81,11 +91,15 @@ function Shell() {
 export default function App() {
   return (
     <HashRouter>
-      <PlannerProvider>
-        <RecordsProvider>
-          <Shell />
-        </RecordsProvider>
-      </PlannerProvider>
+      <SessionGate>
+        {(userId) => (
+          <PlannerProvider userId={userId}>
+            <RecordsProvider>
+              <Shell />
+            </RecordsProvider>
+          </PlannerProvider>
+        )}
+      </SessionGate>
     </HashRouter>
   );
 }

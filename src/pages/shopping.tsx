@@ -13,6 +13,7 @@ import {
   type ShopLine,
   type ShoppingChoice,
 } from "../domain/shopping.ts";
+import { emptyPlan } from "../domain/plan.ts";
 import { usePlanner } from "../state/planner-context.tsx";
 import { useRecords } from "../state/records-context.tsx";
 
@@ -22,7 +23,15 @@ export function ShoppingPage() {
   const [list, setList] = useState<"day" | "full">("full");
   const [includeTank, setIncludeTank] = useState(false);
   const [includeCanWait, setIncludeCanWait] = useState(false);
-  const [edits, setEdits] = useState<Record<string, string>>({});
+  const [edits, setEdits] = useState<Record<string, string>>(() => draft.inputs.plan?.shopEdits ?? {});
+  function rememberEdits(next: Record<string, string> | ((current: Record<string, string>) => Record<string, string>)) {
+    setEdits((current) => {
+      const resolved = typeof next === "function" ? next(current) : next;
+      const plan = draft.inputs.plan ?? emptyPlan();
+      setInputs({ ...draft.inputs, plan: { ...plan, shopEdits: resolved } });
+      return resolved;
+    });
+  }
   const [quotes, setQuotes] = useState<Record<string, string>>({});
   const [message, setMessage] = useState<string | null>(null);
   const lines = list === "day" ? DAY_ONE : FULL_SCALE;
@@ -142,7 +151,7 @@ export function ShoppingPage() {
                   line={line}
                   list={list}
                   edits={edits}
-                  setEdits={setEdits}
+                  rememberEdits={rememberEdits}
                   included={lineIncluded(line, choice)}
                   bought={Boolean(records.purchases[`${list}:${line.id}`])}
                   onBought={(checked) =>
@@ -210,7 +219,7 @@ function ShopRow({
   line,
   list,
   edits,
-  setEdits,
+  rememberEdits,
   included,
   bought,
   onBought,
@@ -218,7 +227,7 @@ function ShopRow({
   line: ShopLine;
   list: string;
   edits: Record<string, string>;
-  setEdits: (value: Record<string, string> | ((current: Record<string, string>) => Record<string, string>)) => void;
+  rememberEdits: (value: Record<string, string> | ((current: Record<string, string>) => Record<string, string>)) => void;
   included: boolean;
   bought: boolean;
   onBought: (checked: boolean) => void;
@@ -260,7 +269,7 @@ function ShopRow({
           className="w-28 rounded-lg border border-line bg-white px-2 py-2 text-right"
           inputMode="decimal"
           value={edits[key] ?? (line.amount == null ? "" : String(line.amount))}
-          onChange={(event) => setEdits((current) => ({ ...current, [key]: event.target.value }))}
+          onChange={(event) => rememberEdits((current) => ({ ...current, [key]: event.target.value }))}
         />
       </td>
     </tr>

@@ -15,6 +15,8 @@ import {
   type SpeciesFilter,
   type SpeciesSort,
 } from "../domain/species.ts";
+import { SpeciesPlan } from "../components/species-plan.tsx";
+import { ForecastBoard } from "../components/forecast.tsx";
 import { usePlanner } from "../state/planner-context.tsx";
 
 const filters: { id: SpeciesFilter; label: string }[] = [
@@ -41,6 +43,8 @@ export function SpeciesPage() {
           Wholesale ranges are HortOS 140/150 mm listings checked 5 Nov 2026, ex GST where the listing says so. Retail prices are inc GST. Seed notes keep the GST basis from each source. Planning sale prices on the planner are a separate, older estimate.
         </p>
       </header>
+      <SpeciesPlan />
+      <ForecastBoard inputs={draft.inputs} />
 
       <section className="panel">
         <div className="flex flex-wrap gap-2" role="group" aria-label="Filter species">

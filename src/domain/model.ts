@@ -64,6 +64,8 @@ export type ScenarioInput = {
   businessRentPerWeek: number;
   openingCash: number;
   monthlySalesWeights: number[];
+  /** Optional species, seed and shopping edits. Absent on older saved scenarios. */
+  plan?: import("./plan.ts").NurseryPlan;
 };
 
 export type BreakEven = {

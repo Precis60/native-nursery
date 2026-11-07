@@ -1,6 +1,8 @@
 import { useMemo, useState } from "react";
 import { Bar, BarChart, CartesianGrid, Cell, Line, LineChart, ResponsiveContainer, Tooltip, XAxis, YAxis } from "recharts";
+import { buildForecast } from "../domain/plan.ts";
 import { formatAud, formatPercent, formatUnits } from "../domain/format.ts";
+import { SPECIES } from "../domain/species.ts";
 import { coerceRecords, expectedShare, planVsActual, recordsToCsv, summarise } from "../domain/records.ts";
 import { MONTH_LABELS } from "../domain/model.ts";
 import { downloadText } from "../lib/download.ts";
@@ -26,6 +28,22 @@ export function DashboardPage() {
   const { draft, result } = usePlanner();
   const { records, syncState, syncError, warning, dismissWarning, replaceRecords } = useRecords();
   const summary = useMemo(() => summarise(records), [records]);
+  const forecast = useMemo(() => buildForecast(draft.inputs), [draft.inputs]);
+  const actualBySpecies = useMemo(() => {
+    const totals = new Map<string, number>();
+    for (const sale of records.sales) {
+      const linked =
+        sale.species ||
+        SPECIES.find(
+          (species) =>
+            sale.description.toLowerCase().includes(species.botanical.toLowerCase()) ||
+            sale.description.toLowerCase().includes(species.common.toLowerCase()),
+        )?.botanical;
+      if (!linked) continue;
+      totals.set(linked, (totals.get(linked) ?? 0) + sale.units);
+    }
+    return totals;
+  }, [records.sales]);
   const pva = useMemo(() => planVsActual(summary, draft.inputs, result), [summary, draft.inputs, result]);
   const [message, setMessage] = useState<string | null>(null);
 
@@ -129,6 +147,30 @@ export function DashboardPage() {
         </div>
       ) : null}
       {syncState === "syncing" ? <p className="note">Syncing records with your account…</p> : null}
+      <section className="panel">
+        <h2 className="font-serif text-2xl">Actual plants against the species plan</h2>
+        <p className="note mt-1">Recorded units count only when a sale names the species. Unlinked sales stay in the totals above and are not guessed into a species.</p>
+        <div className="table-wrap mt-3">
+          <table className="data">
+            <thead>
+              <tr>
+                <th>Species</th>
+                <th className="num">Plan to sell</th>
+                <th className="num">Recorded</th>
+              </tr>
+            </thead>
+            <tbody>
+              {forecast.lines.filter((line) => line.sold > 0 || actualBySpecies.has(line.id)).map((line) => (
+                <tr key={line.id}>
+                  <th scope="row">{line.common}</th>
+                  <td className="num">{formatUnits(line.sold)}</td>
+                  <td className="num">{formatUnits(actualBySpecies.get(line.id) ?? 0)}</td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      </section>
 
       <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4" aria-live="polite">
         <article className="panel">
