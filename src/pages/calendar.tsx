@@ -1,8 +1,12 @@
+import { emptyPlan } from "../domain/plan.ts";
 import { batches, calendar, channels, compliance, risks, setupChecks, sources, sowing, zones } from "../domain/reference.ts";
+import { usePlanner } from "../state/planner-context.tsx";
 import { useRecords } from "../state/records-context.tsx";
 
 export function CalendarPage() {
   const { records, setChecklist } = useRecords();
+  const { draft, setInputs } = usePlanner();
+  const hours = draft.inputs.plan?.calendarHours ?? Array.from({ length: 12 }, () => null);
   const doneCount = compliance.filter((_, index) => records.checklist[`compliance:${index}`]).length;
   const setupDone = setupChecks.filter((_, index) => records.checklist[`setup:${index}`]).length;
   return (
@@ -46,7 +50,24 @@ export function CalendarPage() {
                 <tr key={row.month}>
                   <th scope="row">{row.month}</th>
                   <td>{row.tasks}</td>
-                  <td>{row.solo}</td>
+                  <td>
+                    <span className="block text-muted">Notes: {row.solo}</span>
+                    <label className="sr-only" htmlFor={`hours-${row.month}`}>Your hours for {row.month}</label>
+                    <input
+                      id={`hours-${row.month}`}
+                      className="mt-1 w-24 rounded-lg border border-line px-2 py-2"
+                      inputMode="decimal"
+                      placeholder="Your hours"
+                      value={hours[calendar.indexOf(row)] ?? ""}
+                      onChange={(event) => {
+                        const next = [...hours];
+                        const raw = event.target.value.trim();
+                        next[calendar.indexOf(row)] = raw === "" ? null : Number(raw);
+                        const plan = draft.inputs.plan ?? emptyPlan();
+                        setInputs({ ...draft.inputs, plan: { ...plan, calendarHours: next } });
+                      }}
+                    />
+                  </td>
                   <td>{row.helper}</td>
                 </tr>
               ))}

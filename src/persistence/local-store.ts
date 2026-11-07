@@ -36,8 +36,12 @@ function readRaw(store: KeyValueStore, key: string): { value: unknown; corrupt: 
   }
 }
 
-export function loadDraft(store: KeyValueStore): { draft: DraftRecord; warning: string | null } {
-  const { value, corrupt } = readRaw(store, DRAFT_KEY);
+export function draftKey(userId: string): string {
+  return `native-nursery.draft.${userId}`;
+}
+
+export function loadDraft(store: KeyValueStore, key = DRAFT_KEY): { draft: DraftRecord; warning: string | null } {
+  const { value, corrupt } = readRaw(store, key);
   if (corrupt) {
     return { draft: freshDraft(), warning: "A draft in this browser could not be read. A fresh planning draft is open. The unreadable copy was kept aside in this browser." };
   }
@@ -58,8 +62,8 @@ export function loadDraft(store: KeyValueStore): { draft: DraftRecord; warning: 
   return { draft: { name, inputs, source: safeSource }, warning: null };
 }
 
-export function saveDraft(store: KeyValueStore, draft: DraftRecord): void {
-  store.setItem(DRAFT_KEY, JSON.stringify(draft));
+export function saveDraft(store: KeyValueStore, draft: DraftRecord, key = DRAFT_KEY): void {
+  store.setItem(key, JSON.stringify(draft));
 }
 
 function readScenarios(store: KeyValueStore): SavedScenario[] {

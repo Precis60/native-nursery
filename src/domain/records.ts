@@ -37,6 +37,8 @@ export type SaleEntry = {
   date: string;
   channel: string;
   description: string;
+  /** Botanical name when the sale is linked to a planned species. Older rows omit it. */
+  species?: string;
   size: SizeKind;
   units: number;
   /** Unit price as charged. GST basis is carried by includesGst. */
@@ -397,6 +399,7 @@ export function coerceSale(value: unknown): SaleEntry | null {
     date: text(value.date),
     channel: text(value.channel, "Other"),
     description: text(value.description),
+    species: typeof value.species === "string" && value.species.trim() ? value.species : undefined,
     size: size === "tube" || size === "pot140" ? size : "other",
     units: num(value.units),
     unitPrice: num(value.unitPrice),

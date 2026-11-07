@@ -13,6 +13,7 @@ import {
   type OrderStatus,
   type SizeKind,
 } from "../domain/records.ts";
+import { SPECIES } from "../domain/species.ts";
 import { useRecords } from "../state/records-context.tsx";
 
 const channelOptions = SALE_CHANNELS.map((channel) => [channel, channel] as const);
@@ -27,6 +28,7 @@ export function SalesPage() {
   const [date, setDate] = useState(todayISO());
   const [channel, setChannel] = useState<string>("Other");
   const [description, setDescription] = useState("");
+  const [speciesName, setSpeciesName] = useState("");
   const [size, setSize] = useState<SizeKind>("tube");
   const [units, setUnits] = useState("");
   const [price, setPrice] = useState("");
@@ -52,7 +54,7 @@ export function SalesPage() {
     if (!isISODate(date)) return setMessage("Enter the sale date as YYYY-MM-DD.");
     if (unitCount == null || unitCount <= 0) return setMessage("Units sold needs to be above zero.");
     if (unitPrice == null || unitPrice < 0) return setMessage("Unit price needs to be zero or more.");
-    saveEntry("sale", { date, channel, description: description.trim(), size, units: unitCount, unitPrice, includesGst });
+    saveEntry("sale", { date, channel, description: description.trim(), species: speciesName || undefined, size, units: unitCount, unitPrice, includesGst });
     setDescription("");
     setUnits("");
     setPrice("");
@@ -136,6 +138,13 @@ export function SalesPage() {
           <SelectField id="sale-size" label="Size" value={size} onChange={(value) => setSize(value as SizeKind)} options={sizeOptions} />
           <TextField id="sale-units" label="Units" type="number" value={units} onChange={setUnits} placeholder="e.g. 400" />
           <TextField id="sale-price" label="Unit price" type="number" value={price} onChange={setPrice} placeholder="e.g. 2.20" />
+          <SelectField
+            id="sale-species"
+            label="Species"
+            value={speciesName}
+            onChange={setSpeciesName}
+            options={[["", "Not linked"], ...SPECIES.map((row) => [row.botanical, row.common] as [string, string])]}
+          />
           <TextField
             id="sale-description"
             label="What was sold"

@@ -6,9 +6,8 @@ Checked on 7 Nov 2026 against the live project, by migration content:
 
 - `public.native_nursery_scenarios` exists and was empty. Its policies require `private.native_nursery_is_owner()` and `user_id = auth.uid()`.
 - `public.native_nursery_records` already matches `20261107120000_native_nursery_records.sql`. Do not run that file again.
-- `private.native_nursery_app_owners` is empty. Cloud save is not available.
-- The confirmed owner id `9620ed25-64c9-46b7-9d16-a1b2a03f8802` is not in `auth.users`. The only auth user is a different id, and that id is not allowlisted.
-- `20261107200000_native_nursery_owner.sql` must not insert `2831be20-5ba9-4875-b73e-28c058c9ce2f`. That was the statement on `main` at `09e4b29`. This file is now a no-op until the confirmed owner exists in Authentication and is the sole allowlist row.
+- `private.native_nursery_app_owners` is maintained in the database. This repository does not name the owner and does not insert an allowlist row.
+- After sign-in the app calls `public.native_nursery_session_is_owner()`. Only a true result opens the planner. A signed-in user who is not the owner sees an access-denied screen. There is no registration.
 
 Do not look an owner up by email in application code.
 

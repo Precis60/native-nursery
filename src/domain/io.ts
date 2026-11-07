@@ -1,3 +1,4 @@
+import { coercePlan } from "./plan.ts";
 import { evaluate, type ModelResult, type ScenarioInput } from "./model.ts";
 import { csvCell } from "./format.ts";
 
@@ -69,7 +70,12 @@ export function coerceInputs(value: unknown): ScenarioInput | null {
       if (missingSplit) continue;
       return null;
     }
-    inputs[key] = field;
+    Object.assign(inputs, { [key]: field });
+  }
+  if ("plan" in value && value.plan != null) {
+    const plan = coercePlan(value.plan);
+    if (!plan) return null;
+    inputs.plan = plan;
   }
   return inputs;
 }

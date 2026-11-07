@@ -3,7 +3,7 @@ import type { Session } from "@supabase/supabase-js";
 import { applyKit, type KitId } from "../domain/defaults.ts";
 import type { PortableScenario } from "../domain/io.ts";
 import { evaluate, type ModelResult, type ScenarioInput } from "../domain/model.ts";
-import { createLocalScenarioStore, freshDraft, loadDraft, memoryStore, saveDraft, type KeyValueStore } from "../persistence/local-store.ts";
+import { createLocalScenarioStore, draftKey, freshDraft, loadDraft, memoryStore, saveDraft, type KeyValueStore } from "../persistence/local-store.ts";
 import { createSupabaseScenarioStore } from "../persistence/supabase-store.ts";
 import { publicError, validateScenarioName, type DraftRecord, type SavedScenario } from "../persistence/types.ts";
 import { supabase, supabaseConfig } from "../lib/supabase.ts";
@@ -49,10 +49,11 @@ function browserStorage(): KeyValueStore {
   return typeof localStorage === "undefined" ? memoryStore() : localStorage;
 }
 
-export function PlannerProvider({ children }: { children: ReactNode }) {
+export function PlannerProvider({ userId, children }: { userId: string; children: ReactNode }) {
   const storage = useMemo(browserStorage, []);
+  const storageKey = draftKey(userId);
   const localStore = useMemo(() => createLocalScenarioStore(storage), [storage]);
-  const opened = useMemo(() => loadDraft(storage), [storage]);
+  const opened = useMemo(() => loadDraft(storage, storageKey), [storage, storageKey]);
   const [draft, setDraft] = useState<DraftRecord>(opened.draft);
   const [dirty, setDirty] = useState(false);
   const [warning, setWarning] = useState<string | null>(opened.warning);
@@ -68,11 +69,11 @@ export function PlannerProvider({ children }: { children: ReactNode }) {
   const write = useCallback(
     (next: DraftRecord, options?: { dirty?: boolean; resetFields?: boolean }) => {
       setDraft(next);
-      saveDraft(storage, next);
+      saveDraft(storage, next, storageKey);
       setDirty(options?.dirty ?? true);
       if (options?.resetFields) setFormEpoch((value) => value + 1);
     },
-    [storage],
+    [storage, storageKey],
   );
 
   const refreshLocal = useCallback(async () => {
@@ -133,7 +134,7 @@ export function PlannerProvider({ children }: { children: ReactNode }) {
   }, [session?.user.id]);
 
   const value = useMemo<PlannerValue>(() => {
-    const userId = session?.user.id ?? null;
+    const signedInId = session?.user.id ?? userId;
     return {
       draft,
       dirty,
@@ -144,7 +145,7 @@ export function PlannerProvider({ children }: { children: ReactNode }) {
       configured: supabaseConfig.configured,
       configProblem: supabaseConfig.problem,
       userEmail: session?.user.email ?? null,
-      userId,
+      userId: signedInId,
       localScenarios,
       cloudScenarios,
       cloudState,
@@ -293,9 +294,33 @@ export function PlannerProvider({ children }: { children: ReactNode }) {
     result,
     session?.user.email,
     session?.user.id,
+    userId,
     warning,
     write,
   ]);
+
+  useEffect(() => {
+    const client = supabase;
+    if (!dirty || !client || session?.user.id !== userId || result.status === "invalid") return;
+    const handle = window.setTimeout(() => {
+      void (async () => {
+        try {
+          const store = createSupabaseScenarioStore(client, () => userId);
+          if (draft.source.kind === "cloud") {
+            await store.update(draft.source.id, draft.name, draft.inputs);
+            setDirty(false);
+            setCloudError(null);
+          } else {
+            const created = await store.create(draft.name, draft.inputs);
+            write({ ...draft, source: { kind: "cloud", id: created.id } }, { dirty: false });
+          }
+        } catch (error) {
+          setCloudError(publicError(error));
+        }
+      })();
+    }, 800);
+    return () => window.clearTimeout(handle);
+  }, [dirty, draft, result.status, session?.user.id, userId, write]);
 
   return <PlannerContext.Provider value={value}>{children}</PlannerContext.Provider>;
 }
