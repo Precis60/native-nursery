@@ -2,13 +2,15 @@
 
 Project `xhmzhtdhszirbbiwvbqz` (Native Nursery) is the database for this app. The scenario migration and the owner-allowlist migration are already applied. Do not run them again, and do not change unrelated projects.
 
-Checked after those migrations:
+Checked on 7 Nov 2026 against the live project, by migration content:
 
-- `public.native_nursery_scenarios` has no rows.
-- `auth.users` holds the owner account. `private.native_nursery_app_owners` is filled by the enrolment migration below.
-- `public.native_nursery_records` comes from `20261107120000_native_nursery_records.sql`, pending application.
+- `public.native_nursery_scenarios` exists and was empty. Its policies require `private.native_nursery_is_owner()` and `user_id = auth.uid()`.
+- `public.native_nursery_records` already matches `20261107120000_native_nursery_records.sql`. Do not run that file again.
+- `private.native_nursery_app_owners` is empty. Cloud save is not available.
+- The confirmed owner id `9620ed25-64c9-46b7-9d16-a1b2a03f8802` is not in `auth.users`. The only auth user is a different id, and that id is not allowlisted.
+- `20261107200000_native_nursery_owner.sql` must not insert `2831be20-5ba9-4875-b73e-28c058c9ce2f`. That was the statement on `main` at `09e4b29`. This file is now a no-op until the confirmed owner exists in Authentication and is the sole allowlist row.
 
-The owner account now exists in Authentication. `supabase/migrations/20261107200000_native_nursery_owner.sql` enrols that user id in the allowlist. Apply it, and the records migration, in the SQL editor — until both run, cloud save and record sync stay browser-only. Do not look the id up by email in application code.
+Do not look an owner up by email in application code.
 
 ## Client settings
 
@@ -35,6 +37,6 @@ Row Level Security is enabled. No view is created. If you add one, create it `wi
 
 `supabase/migrations/20261107120000_native_nursery_records.sql` adds `public.native_nursery_records`: one row per recorded sale, expense, production batch, order or labour week (`kind`), plus a single `kind = 'state'` row per user that holds checklist and purchase flags. The app upserts by row id and syncs them into the browser ledger on sign-in.
 
-The migration reuses the same owner allowlist and policy shape as the scenario table. Apply it only after `20261107025000_native_nursery_owner_allowlist.sql`, which creates `private.native_nursery_is_owner()`.
+The migration reuses the same owner allowlist and policy shape as the scenario table. On this project the table, grants and four owner policies are already present, so the create script must not be run again. It depends on `private.native_nursery_is_owner()` from the allowlist migration.
 
 The app sets `updated_at` on update. There is no public trigger function, which keeps the table from growing an RPC endpoint.
