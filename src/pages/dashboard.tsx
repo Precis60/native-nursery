@@ -8,6 +8,7 @@ import { MONTH_LABELS } from "../domain/model.ts";
 import { downloadText } from "../lib/download.ts";
 import { usePlanner } from "../state/planner-context.tsx";
 import { useRecords } from "../state/records-context.tsx";
+import { ReforecastBoard } from "../components/reforecast.tsx";
 
 function money(value: number | null, digits = 0): string {
   if (value == null || !Number.isFinite(value)) return "—";
@@ -228,6 +229,8 @@ export function DashboardPage() {
           <p className="note">owner · {formatUnits(summary.hiredHours)} hrs hired across {records.labour.length} week{records.labour.length === 1 ? "" : "s"}</p>
         </article>
       </div>
+
+      <ReforecastBoard inputs={draft.inputs} result={result} summary={summary} />
 
       <section className="panel">
         <h2 className="font-serif text-2xl">Plan vs actual to {monthLabel}</h2>
