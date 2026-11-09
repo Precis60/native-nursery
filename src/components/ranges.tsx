@@ -3,6 +3,7 @@ import { Bar, BarChart, CartesianGrid, Cell, ReferenceLine, ResponsiveContainer,
 import { formatAud, formatUnits } from "../domain/format.ts";
 import type { ScenarioInput } from "../domain/model.ts";
 import { buildRangeReport } from "../domain/sensitivity.ts";
+import { More } from "./more.tsx";
 
 const GOOD = "#1e3b30";
 const BAD = "#8c3a22";
@@ -118,7 +119,8 @@ export function RangeBoard({ inputs }: { inputs: ScenarioInput }) {
           </BarChart>
         </ResponsiveContainer>
       </div>
-      <ul className="note mt-2 grid gap-1 sm:grid-cols-2">
+      <More summary="How far each driver swings">
+      <ul className="grid gap-1 sm:grid-cols-2">
         {report.bars.map((bar) => (
           <li key={bar.id}>
             <strong>{bar.label}:</strong> {bar.swing}
@@ -133,6 +135,7 @@ export function RangeBoard({ inputs }: { inputs: ScenarioInput }) {
           </li>
         ))}
       </ul>
+      </More>
     </section>
   );
 }

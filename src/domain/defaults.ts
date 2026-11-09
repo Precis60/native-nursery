@@ -19,10 +19,15 @@ export const OPEX_MONTHLY_LOW = 220;
 export const OPEX_MONTHLY_HIGH = 660;
 export const OPEX_MONTHLY_DEFAULT = 440;
 
+/** Seed to saleable tube is roughly three months in the growing season. A planning figure. */
+export const DEFAULT_GROW_LEAD_MONTHS = 3;
+
 export const DEFAULT_WEIGHTS = [1, 1, 2, 2, 5, 8, 16, 18, 14, 10, 13, 10];
 
 const REQUIRED = { includeCanWait: false, includeTank: false };
 const WITH_TANK = { includeCanWait: false, includeTank: true };
+
+const cents = (value: number) => Math.round(value * 100) / 100;
 
 function presetFrom(id: "starter" | "full" | "tank", label: string, rough: number, totals: ClassTotals, includesTank: boolean) {
   return {
@@ -30,11 +35,11 @@ function presetFrom(id: "starter" | "full" | "tank", label: string, rough: numbe
     label,
     /** Earlier rounded planning figure. Not the sum of the lines now included. */
     publishedRoughTotal: rough,
-    seed: totals.seed,
-    oneOffEquipment: totals.equipment,
-    reusableContainers: totals.containers,
-    growingConsumables: totals.consumables,
-    selectedTotal: totals.total,
+    seed: cents(totals.seed),
+    oneOffEquipment: cents(totals.equipment),
+    reusableContainers: cents(totals.containers),
+    growingConsumables: cents(totals.consumables),
+    selectedTotal: cents(totals.total),
     includesTank,
   };
 }
@@ -74,6 +79,9 @@ export function createDefaultInputs(): ScenarioInput {
     businessRentPerWeek: 0,
     openingCash: 8000,
     monthlySalesWeights: [...DEFAULT_WEIGHTS],
+    growLeadMonths: DEFAULT_GROW_LEAD_MONTHS,
+    gstRegistered: false,
+    taxSetAsideRate: 0,
   };
 }
 

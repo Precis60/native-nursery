@@ -95,6 +95,38 @@ select {
   font-weight: 600;
 }
 
+.nav-group {
+  color: var(--color-muted);
+  font-size: 0.7rem;
+  font-weight: 600;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+}
+
+details.more > summary {
+  cursor: pointer;
+  color: var(--color-muted);
+  font-size: 0.82rem;
+  font-weight: 600;
+  list-style: none;
+  min-height: 2.75rem;
+  display: inline-flex;
+  align-items: center;
+  gap: 0.35rem;
+}
+
+details.more > summary::-webkit-details-marker {
+  display: none;
+}
+
+details.more > summary::before {
+  content: "ⓘ";
+}
+
+details.more[open] > summary {
+  color: var(--color-ink);
+}
+
 .field small,
 .note {
   color: var(--color-muted);
@@ -102,7 +134,15 @@ select {
   line-height: 1.45;
 }
 
-.field input,
+.field input[type="checkbox"] {
+  width: 1.25rem;
+  min-height: 0;
+  height: 1.25rem;
+  flex-shrink: 0;
+  accent-color: var(--color-olive, #1e3b30);
+}
+
+.field input:not([type="checkbox"]),
 .field select,
 .text-input {
   width: 100%;

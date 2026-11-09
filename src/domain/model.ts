@@ -64,6 +64,16 @@ export type ScenarioInput = {
   businessRentPerWeek: number;
   openingCash: number;
   monthlySalesWeights: number[];
+  /**
+   * Months between spending on growing media and the plant being sold.
+   * Growing consumables and the per-plant cost follow sales this many months
+   * earlier. Absent on older scenarios, which keep the November lump.
+   */
+  growLeadMonths?: number;
+  /** Registered for GST: collect 10% on sales, claim credits back on BAS. */
+  gstRegistered?: boolean;
+  /** Share of cash operating profit to put aside for income tax. 0 to 1. */
+  taxSetAsideRate?: number;
   /** Optional species, seed and shopping edits. Absent on older saved scenarios. */
   plan?: import("./plan.ts").NurseryPlan;
 };
@@ -77,6 +87,12 @@ export type BreakEven = {
 
 export type MonthCash = {
   label: string;
+  /** Growing consumables spent this month. */
+  consumables: number;
+  gstCollected: number;
+  gstCredits: number;
+  /** Net BAS paid this month. Negative is a refund. */
+  basPayment: number;
   share: number;
   unitsSold: number;
   revenue: number;
@@ -131,6 +147,13 @@ export type ModelResult = {
   gapToProfitGoalAfterOwnerLabour: number | null;
   salesUnitsForProfitGoal: number | null;
   monthly: MonthCash[] | null;
+  growLeadMonths: number | null;
+  gstRegistered: boolean;
+  /** GST from the October quarter, due after the year ends. */
+  gstOwedAtYearEnd: number | null;
+  taxSetAsideRate: number;
+  taxSetAside: number | null;
+  closingCashAfterTax: number | null;
 };
 
 function emptyResult(issues: Issue[]): ModelResult {
@@ -173,6 +196,12 @@ function emptyResult(issues: Issue[]): ModelResult {
     gapToProfitGoalAfterOwnerLabour: null,
     salesUnitsForProfitGoal: null,
     monthly: null,
+    growLeadMonths: null,
+    gstRegistered: false,
+    gstOwedAtYearEnd: null,
+    taxSetAsideRate: 0,
+    taxSetAside: null,
+    closingCashAfterTax: null,
   };
 }
 
@@ -249,6 +278,13 @@ function validate(input: ScenarioInput): Issue[] {
   readNumber(issues, "weeksPerYear", "Weeks per year", input.weeksPerYear, 0, 52);
   readNumber(issues, "businessRentPerWeek", "Business rent allocation", input.businessRentPerWeek, 0, 1_000_000);
   readNumber(issues, "openingCash", "Opening cash", input.openingCash, -1_000_000_000, 1_000_000_000);
+  if (input.growLeadMonths != null) {
+    readNumber(issues, "growLeadMonths", "Grow lead time", input.growLeadMonths, 0, 11);
+    if (Number.isFinite(input.growLeadMonths) && !Number.isInteger(input.growLeadMonths)) {
+      issues.push({ field: "growLeadMonths", message: "Grow lead time is a whole number of months." });
+    }
+  }
+  if (input.taxSetAsideRate != null) readRate(issues, "taxSetAsideRate", "Tax set-aside", input.taxSetAsideRate);
   if (!Array.isArray(input.monthlySalesWeights) || input.monthlySalesWeights.length !== 12) {
     issues.push({ field: "monthlySalesWeights", message: "Enter twelve monthly sales weights, November through October." });
   } else {
@@ -329,18 +365,33 @@ function solveBreakEven(
   };
 }
 
+export const GST_RATE = 0.1;
+export const GST_REGISTRATION_TURNOVER = 75_000;
+
+/**
+ * Quarterly BAS: the month (0 = Nov 2026) each month's GST is paid in, or null
+ * when it falls due after October 2027. Quarters are Oct–Dec (due 28 Feb),
+ * Jan–Mar (28 Apr), Apr–Jun (28 Jul) and Jul–Sep (28 Oct).
+ */
+export const BAS_DUE_MONTH: (number | null)[] = [3, 3, 5, 5, 5, 8, 8, 8, 11, 11, 11, null];
+
+type MonthlyCosts = {
+  unitsSold: number;
+  revenue: number;
+  variable: number;
+  consumables: number;
+  overhead: number;
+  hired: number;
+  rent: number;
+  seed: number;
+  containers: number;
+  capex: number;
+};
+
 function buildMonths(
   input: ScenarioInput,
-  unitsSold: number,
-  revenue: number,
-  variable: number,
-  overhead: number,
-  hired: number,
-  rent: number,
-  seed: number,
-  inventory: number,
-  capex: number,
-): { months: MonthCash[] | null; warning: Issue | null } {
+  totals: MonthlyCosts,
+): { months: MonthCash[] | null; warning: Issue | null; gstOwedAtYearEnd: number } {
   const weights = input.monthlySalesWeights;
   const sum = weights.reduce((total, weight) => total + weight, 0);
   if (!(sum > 0)) {
@@ -350,38 +401,82 @@ function buildMonths(
         field: "monthlySalesWeights",
         message: "Monthly sales weights are all zero, so there is no illustrative timing. Annual totals are unchanged.",
       },
+      gstOwedAtYearEnd: 0,
     };
   }
+  const salesShare = weights.map((weight) => weight / sum);
+  // Production share: each month's sales pulled back by the lead time. Growing
+  // that would have started before November is spent in November.
+  const lead = input.growLeadMonths;
+  const growShare =
+    lead == null
+      ? salesShare.map((_, index) => (index === 0 ? 1 : 0))
+      : salesShare.map((_, index) => {
+          if (index === 0) return salesShare.slice(0, lead + 1).reduce((total, share) => total + share, 0);
+          return salesShare[index + lead] ?? 0;
+        });
+  const registered = input.gstRegistered === true;
+  // Costs are shelf cash, which carries GST. Wages and rent do not.
+  const credit = (amount: number) => (registered ? amount / 11 : 0);
+  const basDue = new Array<number>(12).fill(0);
+  let gstOwedAtYearEnd = 0;
+
+  const rows = salesShare.map((share, index) => {
+    const revenue = totals.revenue * share;
+    const variable = lead == null ? totals.variable * share : totals.variable * growShare[index]!;
+    const consumables = totals.consumables * growShare[index]!;
+    const overhead = totals.overhead / 12;
+    const hired = totals.hired / 12;
+    const rent = totals.rent / 12;
+    const seed = index === 0 ? totals.seed : 0;
+    const containers = index === 0 ? totals.containers : 0;
+    const capex = index === 0 ? totals.capex : 0;
+    const gstCollected = registered ? revenue * GST_RATE : 0;
+    const gstCredits = credit(variable + consumables + overhead + seed + containers + capex);
+    const net = gstCollected - gstCredits;
+    const due = BAS_DUE_MONTH[index];
+    if (due == null) gstOwedAtYearEnd += net;
+    else basDue[due]! += net;
+    return { share, revenue, variable, consumables, overhead, hired, rent, seed, containers, capex, gstCollected, gstCredits };
+  });
+
   let closing = input.openingCash;
-  const months = weights.map((weight, index) => {
-    const share = weight / sum;
-    const rowRevenue = revenue * share;
-    const rowVariable = variable * share;
-    const rowOverhead = overhead / 12;
-    const rowHired = hired / 12;
-    const rowRent = rent / 12;
-    const rowSeed = index === 0 ? seed : 0;
-    const rowInventory = index === 0 ? inventory : 0;
-    const rowCapex = index === 0 ? capex : 0;
-    const netCash = rowRevenue - rowVariable - rowOverhead - rowHired - rowRent - rowSeed - rowInventory - rowCapex;
+  const months = rows.map((row, index) => {
+    const basPayment = basDue[index]!;
+    const netCash =
+      row.revenue +
+      row.gstCollected -
+      row.variable -
+      row.consumables -
+      row.overhead -
+      row.hired -
+      row.rent -
+      row.seed -
+      row.containers -
+      row.capex -
+      basPayment;
     closing += netCash;
     return {
       label: MONTH_LABELS[index],
-      share,
-      unitsSold: unitsSold * share,
-      revenue: rowRevenue,
-      variableCost: rowVariable,
-      overhead: rowOverhead,
-      hiredLabour: rowHired,
-      businessRent: rowRent,
-      seed: rowSeed,
-      inventory: rowInventory,
-      capex: rowCapex,
+      share: row.share,
+      unitsSold: totals.unitsSold * row.share,
+      revenue: row.revenue,
+      variableCost: row.variable,
+      consumables: row.consumables,
+      overhead: row.overhead,
+      hiredLabour: row.hired,
+      businessRent: row.rent,
+      seed: row.seed,
+      inventory: row.containers + (lead == null ? row.consumables : 0),
+      capex: row.capex,
+      gstCollected: row.gstCollected,
+      gstCredits: row.gstCredits,
+      basPayment,
       netCash,
       closingCash: closing,
     };
   });
-  return { months, warning: null };
+  return { months, warning: null, gstOwedAtYearEnd };
 }
 
 export function evaluate(input: ScenarioInput): ModelResult {
@@ -455,6 +550,12 @@ export function evaluate(input: ScenarioInput): ModelResult {
       gapToProfitGoalAfterOwnerLabour: null,
       salesUnitsForProfitGoal: null,
       monthly: null,
+      growLeadMonths: input.growLeadMonths ?? null,
+      gstRegistered: input.gstRegistered === true,
+      gstOwedAtYearEnd: null,
+      taxSetAsideRate: input.taxSetAsideRate ?? 0,
+      taxSetAside: null,
+      closingCashAfterTax: null,
     };
   }
 
@@ -497,19 +598,34 @@ export function evaluate(input: ScenarioInput): ModelResult {
   const finiteGoalUnits =
     salesUnitsForProfitGoal != null && Number.isFinite(salesUnitsForProfitGoal) ? salesUnitsForProfitGoal : null;
 
-  const timing = buildMonths(
-    input,
-    input.salesTarget,
-    revenueExGst,
-    variableProductionCost,
-    annualOverhead,
-    hiredLabourCash,
-    businessRent,
-    purchasedSeed,
-    reusableContainers + growingConsumables,
+  const timing = buildMonths(input, {
+    unitsSold: input.salesTarget,
+    revenue: revenueExGst,
+    variable: variableProductionCost,
+    consumables: growingConsumables,
+    overhead: annualOverhead,
+    hired: hiredLabourCash,
+    rent: businessRent,
+    seed: purchasedSeed,
+    containers: reusableContainers,
     capex,
-  );
+  });
   if (timing.warning) warnings.push(timing.warning);
+  const gstRegistered = input.gstRegistered === true;
+  if (!gstRegistered && revenueExGst >= GST_REGISTRATION_TURNOVER) {
+    warnings.push({
+      field: "gstRegistered",
+      message: `Revenue of ${Math.round(revenueExGst).toLocaleString("en-AU")} dollars is at or above the $75,000 GST turnover threshold. Registration would be required, so tick GST registered.`,
+    });
+  }
+  // With GST, closing cash also carries the GST collected and the credits
+  // claimed back. GST still owed for the October quarter is held back too.
+  const gstCashEffect = timing.months
+    ? timing.months.reduce((total, month) => total + month.gstCollected - month.basPayment, 0) - timing.gstOwedAtYearEnd
+    : 0;
+  const closingCashWithGst = closingCash + gstCashEffect;
+  const taxSetAsideRate = input.taxSetAsideRate ?? 0;
+  const taxSetAside = taxSetAsideRate * Math.max(operatingProfitBeforeOwnerLabour, 0);
 
   return {
     ...base,
@@ -526,12 +642,18 @@ export function evaluate(input: ScenarioInput): ModelResult {
     operatingProfitBeforeOwnerLabour,
     operatingProfitAfterOwnerLabour,
     cashMovementAfterCapex,
-    closingCash,
+    closingCash: closingCashWithGst,
     breakEven,
     gapToProfitGoalBeforeOwnerLabour: PROFIT_GOAL_AUD - operatingProfitBeforeOwnerLabour,
     gapToProfitGoalAfterOwnerLabour: PROFIT_GOAL_AUD - operatingProfitAfterOwnerLabour,
     salesUnitsForProfitGoal: finiteGoalUnits,
     monthly: timing.months,
+    growLeadMonths: input.growLeadMonths ?? null,
+    gstRegistered,
+    gstOwedAtYearEnd: gstRegistered ? timing.gstOwedAtYearEnd : null,
+    taxSetAsideRate,
+    taxSetAside,
+    closingCashAfterTax: closingCashWithGst - taxSetAside,
   };
 }
 

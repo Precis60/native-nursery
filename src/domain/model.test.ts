@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 import { applyKit, createDefaultInputs, KIT_PRESETS } from "./defaults.ts";
 import {
+  BAS_DUE_MONTH,
   evaluate,
   HOUSEHOLD_RENT_WEEKLY_CONTEXT,
   MONTH_LABELS,
@@ -309,8 +310,10 @@ describe("illustrative monthly timing", () => {
     expect(result.monthly![0]?.seed).toBe(result.purchasedSeed);
     expect(result.monthly!.slice(1).every((month) => month.seed === 0)).toBe(true);
     expect(result.monthly![0]?.capex).toBeCloseTo(result.oneOffEquipment! + 100, 8);
-    expect(result.monthly![0]?.inventory).toBeCloseTo(result.reusableContainers! + result.growingConsumables!, 8);
+    expect(result.monthly![0]?.inventory).toBeCloseTo(result.reusableContainers!, 8);
     expect(result.monthly!.slice(1).every((month) => month.inventory === 0)).toBe(true);
+    const media = result.monthly!.reduce((total, month) => total + month.consumables, 0);
+    expect(media).toBeCloseTo(result.growingConsumables!, 8);
     const net = result.monthly!.reduce((total, month) => total + month.netCash, 0);
     expect(net).toBeCloseTo(result.cashMovementAfterCapex!, 6);
     expect(result.monthly!.at(-1)?.closingCash).toBeCloseTo(result.closingCash!, 6);
@@ -347,5 +350,78 @@ describe("default scenario arithmetic", () => {
     expect(result.ownerLabourEconomic).toBe(18 * 35 * 52);
     expect(result.closingCash).toBeCloseTo(8000 + result.cashMovementAfterCapex!, 6);
     walk(result);
+  });
+});
+
+describe("cash timing", () => {
+  const inputs = createDefaultInputs();
+
+  it("keeps the old November lump for scenarios saved before lead time existed", () => {
+    const legacy = evaluate({ ...inputs, growLeadMonths: undefined });
+    expect(legacy.monthly![0]!.consumables).toBeCloseTo(legacy.growingConsumables!, 8);
+    expect(legacy.monthly![0]!.inventory).toBeCloseTo(legacy.reusableContainers! + legacy.growingConsumables!, 8);
+  });
+
+  it("spends growing media the lead time before the sale and changes no annual total", () => {
+    const lead = evaluate({ ...inputs, growLeadMonths: 3 });
+    const none = evaluate({ ...inputs, growLeadMonths: 0 });
+    const weights = inputs.monthlySalesWeights;
+    const total = weights.reduce((sum, weight) => sum + weight, 0);
+    // June sales (month 7) are grown from March (month 4).
+    expect(lead.monthly![4]!.consumables).toBeCloseTo((lead.growingConsumables! * weights[7]!) / total, 8);
+    // Sales in the first lead months were grown before November and land in November.
+    const early = weights.slice(0, 4).reduce((sum, weight) => sum + weight, 0);
+    expect(lead.monthly![0]!.consumables).toBeCloseTo((lead.growingConsumables! * early) / total, 8);
+    // The last lead months grow for next year, which this year does not pay for.
+    expect(lead.monthly![11]!.consumables).toBe(0);
+    expect(lead.operatingProfitBeforeOwnerLabour).toBeCloseTo(none.operatingProfitBeforeOwnerLabour!, 8);
+    expect(lead.closingCash).toBeCloseTo(none.closingCash!, 6);
+    expect(Math.min(...lead.monthly!.map((month) => month.closingCash))).toBeLessThan(
+      Math.min(...none.monthly!.map((month) => month.closingCash)),
+    );
+  });
+
+  it("rejects a fractional or out-of-range lead time", () => {
+    expect(evaluate({ ...inputs, growLeadMonths: 1.5 }).status).toBe("invalid");
+    expect(evaluate({ ...inputs, growLeadMonths: 12 }).status).toBe("invalid");
+  });
+
+  it("adds no GST cash when not registered", () => {
+    const result = evaluate(inputs);
+    expect(result.monthly!.every((month) => month.gstCollected === 0 && month.basPayment === 0)).toBe(true);
+    expect(result.gstOwedAtYearEnd).toBeNull();
+  });
+
+  it("pays each quarter's GST on its BAS month and holds October back", () => {
+    const result = evaluate({ ...inputs, gstRegistered: true });
+    const months = result.monthly!;
+    const net = (index: number) => months[index]!.gstCollected - months[index]!.gstCredits;
+    expect(BAS_DUE_MONTH).toHaveLength(12);
+    // Feb pays Nov and Dec, Apr pays Jan to Mar, Jul pays Apr to Jun, Oct pays Jul to Sep.
+    expect(months[3]!.basPayment).toBeCloseTo(net(0) + net(1), 8);
+    expect(months[5]!.basPayment).toBeCloseTo(net(2) + net(3) + net(4), 8);
+    expect(months[8]!.basPayment).toBeCloseTo(net(5) + net(6) + net(7), 8);
+    expect(months[11]!.basPayment).toBeCloseTo(net(8) + net(9) + net(10), 8);
+    expect(result.gstOwedAtYearEnd).toBeCloseTo(net(11), 8);
+    expect(months[0]!.gstCollected).toBeCloseTo(months[0]!.revenue * 0.1, 8);
+    // GST is passed through, so profit does not move.
+    expect(result.operatingProfitBeforeOwnerLabour).toBeCloseTo(evaluate(inputs).operatingProfitBeforeOwnerLabour!, 8);
+    // Closing cash is the sketch's last month less the GST still owed.
+    expect(result.closingCash).toBeCloseTo(months[11]!.closingCash - result.gstOwedAtYearEnd!, 6);
+  });
+
+  it("warns at the GST registration threshold", () => {
+    const big = evaluate({ ...inputs, salesTarget: 40_000 });
+    expect(big.warnings.some((warning) => warning.field === "gstRegistered")).toBe(true);
+    expect(evaluate({ ...inputs, salesTarget: 40_000, gstRegistered: true }).warnings.some((warning) => warning.field === "gstRegistered")).toBe(false);
+  });
+
+  it("sets tax aside on profit only", () => {
+    const result = evaluate({ ...inputs, taxSetAsideRate: 0.3 });
+    expect(result.taxSetAside).toBeCloseTo(result.operatingProfitBeforeOwnerLabour! * 0.3, 8);
+    expect(result.closingCashAfterTax).toBeCloseTo(result.closingCash! - result.taxSetAside!, 8);
+    const loss = evaluate({ ...inputs, salesTarget: 500, taxSetAsideRate: 0.3 });
+    expect(loss.taxSetAside).toBe(0);
+    expect(evaluate({ ...inputs, taxSetAsideRate: 30 }).status).toBe("invalid");
   });
 });

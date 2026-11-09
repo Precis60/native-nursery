@@ -15,21 +15,14 @@ import { rememberSignOutNotice, SessionGate } from "./auth/session-gate.tsx";
 import { PlannerProvider, usePlanner } from "./state/planner-context.tsx";
 import { RecordsProvider } from "./state/records-context.tsx";
 
-const links = [
-  ["/", "Planner"],
-  ["/dashboard", "Dashboard"],
-  ["/sales", "Sales"],
-  ["/costs", "Costs"],
-  ["/batches", "Batches"],
-  ["/species", "Species"],
-  ["/shopping", "Shopping"],
-  ["/calendar", "Calendar"],
-  ["/compare", "Compare"],
-  ["/library", "Scenarios"],
-  ["/account", "Account"],
+const navGroups = [
+  { label: "Plan", links: [["/", "Planner"], ["/species", "Species"], ["/shopping", "Shopping"], ["/calendar", "Calendar"]] },
+  { label: "Run", links: [["/dashboard", "Dashboard"], ["/sales", "Sales"], ["/costs", "Costs"], ["/batches", "Batches"]] },
+  { label: "Scenarios", links: [["/compare", "Compare"], ["/library", "Saved"]] },
+  { label: "", links: [["/account", "Account"]] },
 ] as const;
 
-function Shell() {
+export function Shell() {
   const location = useLocation();
   const planner = usePlanner();
   const { userEmail } = planner;
@@ -57,11 +50,16 @@ function Shell() {
             Sign out
           </button>
         </div>
-        <nav aria-label="Sections" className="mx-auto flex w-full min-w-0 max-w-6xl gap-2 overflow-x-auto px-4 pb-3">
-          {links.map(([to, label]) => (
-            <NavLink key={to} to={to} end={to === "/"} className="chip shrink-0">
-              {label}
-            </NavLink>
+        <nav aria-label="Sections" className="mx-auto flex w-full min-w-0 max-w-6xl gap-3 overflow-x-auto px-4 pb-3">
+          {navGroups.map((group, index) => (
+            <div key={group.label || index} role="group" aria-label={group.label || "Account"} className={`flex shrink-0 items-center gap-2 ${index > 0 ? "border-l border-line pl-3" : ""}`}>
+              {group.label ? <span className="nav-group">{group.label}</span> : null}
+              {group.links.map(([to, label]) => (
+                <NavLink key={to} to={to} end={to === "/"} className="chip shrink-0">
+                  {label}
+                </NavLink>
+              ))}
+            </div>
           ))}
         </nav>
       </header>
@@ -82,7 +80,7 @@ function Shell() {
         </Routes>
       </main>
       <footer className="no-print mx-auto max-w-6xl px-4 pb-10 text-sm text-muted">
-        Estimates are in AUD. Sale prices on the plan are ex GST unless a line says otherwise. Kit shelf prices are often inc GST. Household rent is not a business cost unless you type a business allocation.
+        All figures are estimates in AUD. Sale prices are ex GST; kit prices are shelf prices, often inc GST.
       </footer>
     </>
   );
