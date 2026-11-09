@@ -20,6 +20,7 @@ import { MONTH_LABELS, issueFor } from "../domain/model.ts";
 import { formatAud } from "../domain/format.ts";
 import { downloadText } from "../lib/download.ts";
 import { ForecastBoard } from "../components/forecast.tsx";
+import { RangeBoard } from "../components/ranges.tsx";
 import { usePlanner } from "../state/planner-context.tsx";
 
 export function PlannerPage() {
@@ -118,6 +119,7 @@ export function PlannerPage() {
           <ResultBoard result={planner.result} inputs={planner.draft.inputs} />
         </div>
       </div>
+      <RangeBoard inputs={planner.draft.inputs} />
     </div>
   );
 }
