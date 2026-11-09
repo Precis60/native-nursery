@@ -72,6 +72,19 @@ export function coerceInputs(value: unknown): ScenarioInput | null {
     }
     Object.assign(inputs, { [key]: field });
   }
+  // Optional cash-timing settings. Older scenarios omit them.
+  if (value.growLeadMonths != null) {
+    if (typeof value.growLeadMonths !== "number") return null;
+    inputs.growLeadMonths = value.growLeadMonths;
+  }
+  if (value.gstRegistered != null) {
+    if (typeof value.gstRegistered !== "boolean") return null;
+    inputs.gstRegistered = value.gstRegistered;
+  }
+  if (value.taxSetAsideRate != null) {
+    if (typeof value.taxSetAsideRate !== "number") return null;
+    inputs.taxSetAsideRate = value.taxSetAsideRate;
+  }
   if ("plan" in value && value.plan != null) {
     const plan = coercePlan(value.plan);
     if (!plan) return null;
@@ -157,6 +170,12 @@ export function scenarioToCsv(name: string, result: ModelResult): string {
     ["annual", "quote_needed_cash", result.quoteNeededCash],
     ["annual", "cash_movement_after_capex", result.cashMovementAfterCapex],
     ["annual", "closing_cash", result.closingCash],
+    ["annual", "grow_lead_months", result.growLeadMonths],
+    ["annual", "gst_registered", result.gstRegistered ? "yes" : "no"],
+    ["annual", "gst_owed_at_year_end", result.gstOwedAtYearEnd],
+    ["annual", "tax_set_aside_rate", result.taxSetAsideRate],
+    ["annual", "tax_set_aside", result.taxSetAside],
+    ["annual", "closing_cash_after_tax", result.closingCashAfterTax],
     ["annual", "break_even_status", result.breakEven?.status ?? ""],
     ["annual", "operating_break_even_sales", result.breakEven?.operatingSalesUnits ?? null],
     ["annual", "cash_break_even_sales", result.breakEven?.cashSalesUnits ?? null],
@@ -165,6 +184,7 @@ export function scenarioToCsv(name: string, result: ModelResult): string {
   for (const month of result.monthly ?? []) {
     rows.push(["month", month.label, month.revenue]);
     rows.push(["month_cash", month.label, month.netCash]);
+    if (result.gstRegistered) rows.push(["month_bas", month.label, month.basPayment]);
   }
   return rows.map((row) => row.map((cell) => csvCell(cell)).join(",")).join("\n");
 }

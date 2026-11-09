@@ -1,15 +1,16 @@
 import { buildForecast } from "../domain/plan.ts";
 import { formatAud, formatPercent, formatUnits } from "../domain/format.ts";
 import type { ScenarioInput } from "../domain/model.ts";
+import { More } from "./more.tsx";
 export function ForecastBoard({ inputs }: { inputs: ScenarioInput }) {
   const forecast = buildForecast(inputs);
   const monthRevenue = forecast.byMonth.reduce((sum, row) => sum + row.revenueExGst, 0);
   return (
     <section className="panel" data-testid="forecast">
       <h2 className="font-serif text-2xl">Sales forecast</h2>
-      <p className="note mt-1">
-        Plants sold are the quantities you plan to sell. Starts are those sales grossed up by sell-through, survival and germination. {forecast.ownedPots} already-owned 140 mm pots add space and no dollars. Seed cash is the known pack total only and is not also inside equipment, media or pots.
-      </p>
+      <More>
+        <p>Plants sold are the quantities you plan to sell. Starts are those sales grossed up by sell-through, survival and germination. {forecast.ownedPots} already-owned 140 mm pots add space and no dollars. Seed cash is the known pack total only and is not also inside equipment, media or pots.</p>
+      </More>
       <dl className="mt-3 grid grid-cols-2 gap-3 sm:grid-cols-4">
         <div>
           <dt className="note">Plants to sell</dt>

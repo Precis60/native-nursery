@@ -4,6 +4,7 @@ import { HOUSEHOLD_RENT_WEEKLY_CONTEXT, type ModelResult } from "../domain/model
 import { INVENTORY_COVER } from "../domain/shopping.ts";
 import type { ScenarioInput } from "../domain/model.ts";
 import { CashChart, ProfitChart } from "./charts.tsx";
+import { More } from "./more.tsx";
 
 function money(value: number | null, digits = 0): string {
   if (value == null || !Number.isFinite(value)) return "—";
@@ -82,9 +83,9 @@ export function ResultBoard({ result, inputs }: { result: ModelResult; inputs: S
 
       <section className="panel">
         <h2 className="font-serif text-2xl">Production from the sales target</h2>
-        <p className="note mt-1">
-          Sell-through is not applied to the sales count. {formatUnits(inputs.salesTarget)} is the number you plan to sell. Saleable stock is that number divided by sell-through, then survival and germination gross up the plants you have to start.
-        </p>
+        <More>
+          <p>{formatUnits(inputs.salesTarget)} is the number you plan to sell. Saleable stock is that number divided by sell-through, then survival and germination gross up the plants you have to start.</p>
+        </More>
         <dl className="mt-3 grid grid-cols-2 gap-3 sm:grid-cols-4">
           <div>
             <dt className="note">Starts</dt>
@@ -107,9 +108,11 @@ export function ResultBoard({ result, inputs }: { result: ModelResult; inputs: S
 
       <section className="panel">
         <h2 className="font-serif text-2xl">Ledger</h2>
-        <p className="note mt-1">
+        <More>
+          <p>
           Seed, growing media and reusable tubes or pots are each counted once, and none of them is called equipment. Durable gear is capital. {kit === "tank" ? "The tank is inside one-off equipment." : kit === "full" ? `Required full-scale lines total ${formatAud(KIT_PRESETS.full.selectedTotal, 2)}. The earlier $6,800 figure is a rough reference, not this total.` : kit === "starter" ? `Day-one lines total ${formatAud(KIT_PRESETS.starter.selectedTotal, 2)}, against a rough $2,490 reference.` : "These amounts do not match a preset."} Household rent of {formatAud(HOUSEHOLD_RENT_WEEKLY_CONTEXT)} a week is not in the ledger.
-        </p>
+          </p>
+        </More>
         <div className="table-wrap mt-3">
           <table className="data">
             <caption className="sr-only">Cash and economic results for the open scenario</caption>
@@ -141,7 +144,25 @@ export function ResultBoard({ result, inputs }: { result: ModelResult; inputs: S
               />
               <Ledger label="Cash movement after equipment" treatment="Operating profit minus capital" amount={result.cashMovementAfterCapex} strong />
               <Ledger label="Opening cash" treatment="Your assumption" amount={inputs.openingCash} />
-              <Ledger label="Closing cash" treatment="Opening cash plus the movement" amount={result.closingCash} strong />
+              {result.gstRegistered ? (
+                <Ledger
+                  label="GST still owed"
+                  treatment="October quarter, due on the February BAS. Held back from closing cash"
+                  amount={result.gstOwedAtYearEnd}
+                />
+              ) : null}
+              <Ledger
+                label="Closing cash"
+                treatment={result.gstRegistered ? "Opening cash plus the movement, after GST" : "Opening cash plus the movement"}
+                amount={result.closingCash}
+                strong
+              />
+              {result.taxSetAsideRate > 0 ? (
+                <>
+                  <Ledger label="Income tax set-aside" treatment={`${Math.round(result.taxSetAsideRate * 1000) / 10}% of cash profit, kept for the tax bill`} amount={result.taxSetAside} />
+                  <Ledger label="Closing cash after tax" treatment="What is left to spend" amount={result.closingCashAfterTax} strong />
+                </>
+              ) : null}
             </tbody>
           </table>
         </div>
@@ -168,7 +189,12 @@ export function ResultBoard({ result, inputs }: { result: ModelResult; inputs: S
         <section className="panel">
           <h2 className="font-serif text-2xl">Illustrative monthly cash</h2>
           <p className="note mt-1">
-            Revenue and the illustrative per-plant cost follow your sales weights. Seed, media, tubes and durable gear leave in November. Overhead, hired wages and rent are spread evenly. Owner labour is not cash. This is a timing sketch, not a forecast.
+            Revenue follows your sales weights.{" "}
+            {result.growLeadMonths == null
+              ? "Seed, media, tubes and durable gear leave in November."
+              : `Growing media and the per-plant cost leave ${result.growLeadMonths} month${result.growLeadMonths === 1 ? "" : "s"} before the sales they grow. Seed, tubes and durable gear leave in November.`}{" "}
+            Overhead, hired wages and rent are spread evenly.
+            {result.gstRegistered ? " Revenue is ex GST; net cash adds the 10% GST collected, and the BAS column is each quarter's refund (+) or payment (−) in its due month." : ""} Owner labour is not cash.
           </p>
           <div className="table-wrap mt-3">
             <table className="data">
@@ -178,6 +204,7 @@ export function ResultBoard({ result, inputs }: { result: ModelResult; inputs: S
                   <th>Month</th>
                   <th className="num">Sales</th>
                   <th className="num">Revenue</th>
+                  {result.gstRegistered ? <th className="num">BAS</th> : null}
                   <th className="num">Net cash</th>
                   <th className="num">Closing</th>
                 </tr>
@@ -188,6 +215,7 @@ export function ResultBoard({ result, inputs }: { result: ModelResult; inputs: S
                     <td>{month.label}</td>
                     <td className="num">{formatUnits(month.unitsSold)}</td>
                     <td className="num">{formatAud(month.revenue)}</td>
+                    {result.gstRegistered ? <td className="num">{month.basPayment === 0 ? "—" : `${month.basPayment < 0 ? "+" : "−"}${formatAud(Math.abs(month.basPayment))}`}</td> : null}
                     <td className="num">{formatAud(month.netCash)}</td>
                     <td className="num">{formatAud(month.closingCash)}</td>
                   </tr>

@@ -56,3 +56,11 @@ If that contribution is zero or negative, break-even is reported as impossible r
 The $40,000 gap is measured on cash operating profit before owner labour and before equipment. The screen also shows the gap after owner labour. A zero production rate with a positive sales target does not produce a profit figure.
 
 A handoff note wrote `profit = revenue − (kit + seed + opex + tank)` and `break-even = costs / average price`. The first counts seed twice and counts the tank twice when the kit already includes it, and it treats equipment as operating profit. The second ignores variable production cost. Those formulas are not used. `src/domain/model.test.ts` checks the difference.
+
+## Cash timing, GST and tax
+
+These settings move cash between months. They do not change profit.
+
+- **Grow lead time** (default 3 months). Growing consumables and the per-plant cost are spent that many months before the sales they grow. Growing for sales in the first months of the year lands in November. The final months grow for the following year, so this year does not pay for them. Seed, containers and equipment still leave in November. Scenarios saved before this setting existed keep the November lump.
+- **GST registered** (default off). Sales collect 10% on top of the ex-GST price. Costs are shelf cash, so a credit of one eleventh is claimed on media, the per-plant cost, overhead, seed, containers and equipment, but not on wages or rent. Each quarter's balance is paid or refunded in its BAS month: Nov–Dec in February, Jan–Mar in April, Apr–Jun in July and Jul–Sep in October. October's GST is due after the year ends, so it is held back from closing cash. Revenue at or above $75,000 shows a registration warning.
+- **Income tax set-aside** (default 0%). A share of positive cash operating profit, shown as closing cash after tax. The right rate depends on other income.

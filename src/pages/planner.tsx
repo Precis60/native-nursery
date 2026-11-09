@@ -1,8 +1,11 @@
 import { useState } from "react";
 import { NumberField, PercentField } from "../components/fields.tsx";
+import { CheckField } from "../components/record-fields.tsx";
+import { More } from "../components/more.tsx";
 import { ResultBoard } from "../components/results.tsx";
 import {
   DEFAULT_GERMINATION,
+  DEFAULT_GROW_LEAD_MONTHS,
   DEFAULT_SELL_THROUGH,
   DEFAULT_SURVIVAL,
   ILLUSTRATIVE_UNIT_COST,
@@ -47,8 +50,12 @@ export function PlannerPage() {
         <p className="text-sm font-semibold uppercase tracking-[0.16em] text-gold">Year 1</p>
         <h1 className="font-serif text-4xl text-olive sm:text-5xl">Native Nursery</h1>
         <p className="mt-2 max-w-3xl text-muted">
-          Independent nursery planner for a proposed rented site near Geelong. Figures are estimates in AUD. Sale prices are ex GST. The tube default is the midpoint of an old planning range, not a current quote. Owner time is economic. Hired wages are cash. Business rent stays $0 until you allocate it. Household rent is not added.
+          Year-one plan for an independent native nursery near Geelong: sales, production, cash and the range of outcomes.
         </p>
+        <More summary="Planning basis">
+          <p>Figures are estimates in AUD and sale prices are ex GST. Default prices are midpoints of earlier planning ranges, not current quotes.</p>
+          <p>Owner time is valued but is not a cash cost. Hired wages are cash. Business rent stays $0 until you allocate some; household rent is never added.</p>
+        </More>
       </header>
 
       {planner.warning ? (
@@ -149,9 +156,9 @@ function PlannerForm() {
             </button>
           ))}
         </div>
-        <p className="note mt-2">
-          Button amounts are the sum of included lines. Earlier notes rounded a longer list to about $2,490, $6,800 and $7,730. Those are references. Items that can wait, and anything still needing a quote, stay out until you include them.
-        </p>
+        <More summary="About the kit buttons">
+          <p>Button amounts are the sum of included lines. Earlier notes rounded a longer list to about $2,490, $6,800 and $7,730; those are references only. Items that can wait, and anything still needing a quote, stay out until you include them.</p>
+        </More>
         <div className="mt-4 grid gap-3 sm:grid-cols-2">
           <NumberField id="sales-target" label="Sales target" suffix="plants sold" hint="This is the number you plan to sell. It is not cut by 85%." value={inputs.salesTarget} onChange={(value) => setInput("salesTarget", value)} error={error("salesTarget")} />
           <PercentField id="tube-share" label="Tube share" hint="The rest are 140 mm pots. Default plan is 80% tubes." value={inputs.tubeShare} onChange={(value) => setInput("tubeShare", value)} error={error("tubeShare")} />
@@ -162,9 +169,11 @@ function PlannerForm() {
 
       <section className="panel">
         <h2 className="font-serif text-2xl">Germination, survival, sell-through</h2>
-        <p className="note mt-1">
+        <More summary="Where the defaults come from">
+          <p>
           These are three different rates. Sell-through defaults to {Math.round(DEFAULT_SELL_THROUGH * 100)}%, the plan’s “85% sold” case, and it only increases how many saleable plants you need. Survival defaults to {Math.round(DEFAULT_SURVIVAL * 1000) / 10}%, about the middle of the “grow 10–15% extra” note. Germination defaults to {Math.round(DEFAULT_GERMINATION * 100)}% because the notes never published one rate.
-        </p>
+          </p>
+        </More>
         <div className="mt-4 grid gap-3 sm:grid-cols-3">
           <PercentField id="germination" label="Germination / strike" value={inputs.germinationRate} onChange={(value) => setInput("germinationRate", value)} error={error("germinationRate")} />
           <PercentField id="survival" label="Survival to saleable" value={inputs.survivalRate} onChange={(value) => setInput("survivalRate", value)} error={error("survivalRate")} />
@@ -187,12 +196,15 @@ function PlannerForm() {
         <button className="btn btn-secondary mt-3" type="button" onClick={() => setInputs({ ...inputs, purchasedSeedAllowance: 900 }, true)}>
           Set seed allowance to $900
         </button>
-        <p className="note mt-2">That replaces the allowance with the note about buying Banksia as 1,000 seeds (about $350 more than the $550 full-year allowance). It does not add $350 on top.</p>
+        <p className="note mt-2">Replaces the allowance to cover buying Banksia as 1,000 seeds. It does not add on top.</p>
       </section>
 
       <section className="panel">
         <h2 className="font-serif text-2xl">Labour and rent</h2>
-        <p className="note mt-1">Owner hours are priced as economic time and stay out of cash profit. Hired hours are wages. A helper was estimated to cut peak weeks by about 40%, which you can reflect by lowering owner hours and adding hired hours.</p>
+        <p className="note mt-1">Owner hours are valued but stay out of cash profit. Hired hours are wages.</p>
+        <More summary="Modelling a helper">
+          <p>A helper was estimated to cut peak weeks by about 40%. Reflect that by lowering owner hours and adding hired hours.</p>
+        </More>
         <div className="mt-4 grid gap-3 sm:grid-cols-2">
           <NumberField id="owner-hours" label="Owner hours per week" hint="Flat estimate inside the calendar’s roughly 12–25 hours." value={inputs.ownerHoursPerWeek} onChange={(value) => setInput("ownerHoursPerWeek", value)} error={error("ownerHoursPerWeek")} />
           <NumberField id="owner-rate" label="Owner hourly rate" hint="Planning estimate, not an award rate and not cash." value={inputs.ownerHourlyRate} onChange={(value) => setInput("ownerHourlyRate", value)} error={error("ownerHourlyRate")} />
@@ -200,6 +212,37 @@ function PlannerForm() {
           <NumberField id="hired-rate" label="Hired hourly rate" hint="Cash. Used only when hired hours are above zero." value={inputs.hiredHourlyRate} onChange={(value) => setInput("hiredHourlyRate", value)} error={error("hiredHourlyRate")} />
           <NumberField id="weeks" label="Active weeks" hint="Labour uses this. Rent allocation always uses 52 weeks." value={inputs.weeksPerYear} onChange={(value) => setInput("weeksPerYear", value)} error={error("weeksPerYear")} />
           <NumberField id="rent" label="Business rent per week" hint="Household rent of $450 a week would be paid anyway and is not charged here. Leave this at $0 unless you choose to allocate some rent to the nursery." value={inputs.businessRentPerWeek} onChange={(value) => setInput("businessRentPerWeek", value)} error={error("businessRentPerWeek")} />
+        </div>
+      </section>
+
+      <section className="panel">
+        <h2 className="font-serif text-2xl">Cash timing and tax</h2>
+        <p className="note mt-1">These move money between months and set tax aside. They do not change profit.</p>
+        <div className="mt-4 grid gap-3 sm:grid-cols-2">
+          <NumberField
+            id="grow-lead"
+            label="Grow lead time"
+            suffix="months"
+            hint={`Growing media and the per-plant cost are spent this many months before the sale. ${DEFAULT_GROW_LEAD_MONTHS} is a planning figure for a tube. Blank keeps them all in November.`}
+            value={inputs.growLeadMonths ?? Number.NaN}
+            onChange={(value) => setInput("growLeadMonths", Number.isNaN(value) ? undefined : value)}
+            error={error("growLeadMonths")}
+          />
+          <PercentField
+            id="tax-set-aside"
+            label="Income tax set-aside"
+            hint="Share of cash profit to put aside. It depends on your other income, so check the rate with your accountant."
+            value={inputs.taxSetAsideRate ?? 0}
+            onChange={(value) => setInput("taxSetAsideRate", value)}
+            error={error("taxSetAsideRate")}
+          />
+          <CheckField
+            id="gst-registered"
+            label="Registered for GST"
+            hint="Adds 10% to sales, claims GST back on costs and pays the balance on each quarterly BAS. Registration is required from $75,000 turnover."
+            checked={inputs.gstRegistered === true}
+            onChange={(checked) => setInput("gstRegistered", checked)}
+          />
         </div>
       </section>
 

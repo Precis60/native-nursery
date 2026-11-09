@@ -58,7 +58,7 @@ export function CashChart({ result }: { result: ModelResult }) {
   return (
     <section className="panel" aria-hidden="true">
       <h2 className="font-serif text-2xl">Closing cash sketch</h2>
-      <p className="note mt-1">November includes seed and equipment. Later months are mostly sales against a flat cost.</p>
+      <p className="note mt-1">The lowest point is the cash buffer you need. Seed, tubes and equipment leave in November{result.growLeadMonths != null ? "; growing media follows the grow lead time" : ""}.</p>
       <div className="mt-3 h-64">
         <ResponsiveContainer width="100%" height="100%">
           <LineChart data={data} margin={{ top: 8, right: 8, left: 0, bottom: 8 }}>
